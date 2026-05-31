@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Clock</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+    <div class="bg-glow"></div>
+
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>CLOCK<span>PRO</span></h2>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="cityInput" placeholder="Search City...">
+                <button onclick="detectAndAdd()" class="add-btn">+</button>
+            </div>
+
+            <div class="settings">
+                <label class="switch">
+                    <input type="checkbox" id="formatToggle" onchange="toggleFormat()">
+                    <span class="slider"></span>
+                </label>
+                <span>24-Hour Format</span>
+            </div>
+
+            <div class="settings">
+                <label class="switch">
+                    <input type="checkbox" onchange="toggleTheme()">
+                    <span class="slider"></span>
+                </label>
+                <span>Light Mode</span>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-info">
+                    <h1 id="local-city">Global Overview</h1>
+                    <p id="current-date-top"></p>
+                </div>
+            </header>
+
+            <div id="clockContainer" class="clock-grid">
+                <div class="glass-card" data-timezone="Asia/Karachi">
+                    <div class="card-header">
+                        <span class="status-dot"></span>
+                        <h3>Karachi</h3>
+                        <button class="close-card" onclick="this.parentElement.parentElement.remove()">×</button>
+                    </div>
+                    <div class="time-main">00:00:00</div>
+                    <div class="date-sub">Loading...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let is24Hour = true;
+        const dateTop = document.getElementById('current-date-top');
+        dateTop.innerText = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
+
+        function toggleFormat() { is24Hour = !is24Hour; }
+        function toggleTheme() { document.body.classList.toggle('light-theme'); }
+
+        async function detectAndAdd() {
+            const city = document.getElementById('cityInput').value;
+            if (!city) return;
+            const res = await fetch('/get_timezone', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ city: city })
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+                addClockCard(data.timezone);
+                document.getElementById('cityInput').value = "";
+            }
+        }
+
+        function addClockCard(tz) {
+            const cityName = tz.split('/').pop().replace('_', ' ');
+            const container = document.getElementById('clockContainer');
+            const card = document.createElement('div');
+            card.className = 'glass-card';
+            card.dataset.timezone = tz;
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="status-dot"></span>
+                    <h3>${cityName}</h3>
+                    <button class="close-card" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+                <div class="time-main">00:00:00</div>
+                <div class="date-sub">Loading...</div>
+            `;
+            container.appendChild(card);
+        }
+
+        function tick() {
+            document.querySelectorAll('.glass-card').forEach(card => {
+                const tz = card.dataset.timezone;
+                const now = new Date(new Date().toLocaleString("en-US", {timeZone: tz}));
+                card.querySelector('.time-main').innerText = now.toLocaleTimeString('en-GB', { 
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !is24Hour 
+                });
+                card.querySelector('.date-sub').innerText = now.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+            });
+        }
+        setInterval(tick, 1000);
+    </script>
+</body>
+</html>
